@@ -321,7 +321,10 @@ fn buffer_previous(
     Ok(())
 }
 
-fn write_impl(cx: &mut compositor::Context, path: Option<&str>, force: bool) -> anyhow::Result<()> {
+fn write_impl(cx: &mut compositor::Context, args: &Args, force: bool) -> anyhow::Result<()> {
+    let format = !args.has_flag("no-format");
+    let path = args.first();
+
     let config = cx.editor.config();
     let jobs = &mut cx.jobs;
     let (view, doc) = current!(cx.editor);
@@ -339,7 +342,7 @@ fn write_impl(cx: &mut compositor::Context, path: Option<&str>, force: bool) -> 
     // Save an undo checkpoint for any outstanding changes.
     doc.append_changes_to_history(view);
 
-    let fmt = if config.auto_format {
+    let fmt = if format && config.auto_format {
         doc.auto_format().map(|fmt| {
             let callback = make_format_callback(
                 doc.id(),
@@ -427,7 +430,7 @@ fn write(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow
         return Ok(());
     }
 
-    write_impl(cx, args.first(), false)
+    write_impl(cx, &args, false)
 }
 
 fn force_write(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow::Result<()> {
@@ -435,7 +438,7 @@ fn force_write(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> 
         return Ok(());
     }
 
-    write_impl(cx, args.first(), true)
+    write_impl(cx, &args, true)
 }
 
 fn write_buffer_close(
@@ -447,7 +450,7 @@ fn write_buffer_close(
         return Ok(());
     }
 
-    write_impl(cx, args.first(), false)?;
+    write_impl(cx, &args, false)?;
 
     let document_ids = buffer_gather_paths_impl(cx.editor, args);
     buffer_close_by_ids_impl(cx, &document_ids, false)
@@ -462,7 +465,7 @@ fn force_write_buffer_close(
         return Ok(());
     }
 
-    write_impl(cx, args.first(), true)?;
+    write_impl(cx, &args, true)?;
 
     let document_ids = buffer_gather_paths_impl(cx.editor, args);
     buffer_close_by_ids_impl(cx, &document_ids, false)
@@ -643,7 +646,7 @@ fn write_quit(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> a
         return Ok(());
     }
 
-    write_impl(cx, args.first(), false)?;
+    write_impl(cx, &args, false)?;
     cx.block_try_flush_writes()?;
     quit(cx, Args::default(), event)
 }
@@ -657,7 +660,7 @@ fn force_write_quit(
         return Ok(());
     }
 
-    write_impl(cx, args.first(), true)?;
+    write_impl(cx, &args, true)?;
     cx.block_try_flush_writes()?;
     force_quit(cx, Args::default(), event)
 }
