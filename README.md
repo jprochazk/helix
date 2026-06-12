@@ -16,6 +16,11 @@
 
 </div>
 
+> [!WARNING]
+> This is a personal fork of [Helix](https://github.com/helix-editor/helix) with
+> opinionated behavior changes. It is unsupported and may break at any time.
+> **Do not use it** -- use upstream Helix instead.
+
 ![Screenshot](./screenshot.png)
 
 A [Kakoune](https://github.com/mawww/kakoune) / [Neovim](https://github.com/neovim/neovim) inspired editor, written in Rust.

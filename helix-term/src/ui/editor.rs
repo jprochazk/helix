@@ -698,7 +698,13 @@ impl EditorView {
                 bufferline_inactive
             };
 
-            let text = format!(" {}{} ", fname, if doc.is_modified() { "[+]" } else { "" });
+            let indicator = match (doc.is_modified(), doc.is_stale()) {
+                (true, true) => "[+s]",
+                (true, false) => "[+]",
+                (false, true) => "[s]",
+                (false, false) => "",
+            };
+            let text = format!(" {}{} ", fname, indicator);
             let used_width = viewport.x.saturating_sub(x);
             let rem_width = surface.area.width.saturating_sub(used_width);
 
@@ -1581,6 +1587,7 @@ impl Component for EditorView {
             Event::IdleTimeout => self.handle_idle_timeout(&mut cx),
             Event::FocusGained => {
                 self.terminal_focused = true;
+                crate::handlers::auto_reload::poll(context.editor);
                 EventResult::Consumed(None)
             }
             Event::FocusLost => {

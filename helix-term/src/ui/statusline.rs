@@ -478,10 +478,11 @@ fn render_file_modification_indicator<'a, F>(context: &mut RenderContext<'a>, wr
 where
     F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
 {
-    let title = if context.doc.is_modified() {
-        "[+]"
-    } else {
-        "   "
+    let title = match (context.doc.is_modified(), context.doc.is_stale()) {
+        (true, true) => "[+s]",
+        (true, false) => "[+]",
+        (false, true) => "[s]",
+        (false, false) => "   ",
     };
 
     write(context, title.into());

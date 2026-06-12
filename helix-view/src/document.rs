@@ -192,6 +192,11 @@ pub struct Document {
     // were no saves.
     last_saved_time: SystemTime,
 
+    /// Mtime of the file on disk as of the last auto-reload poll, `None` right
+    /// after a load/save. The buffer is stale when this differs from
+    /// `last_saved_time`.
+    observed_disk_mtime: Option<SystemTime>,
+
     last_saved_revision: usize,
     version: i32, // should be usize?
     pub(crate) modified_since_accessed: bool,
@@ -746,6 +751,7 @@ impl Document {
             history: Cell::new(History::default()),
             savepoints: Vec::new(),
             last_saved_time: SystemTime::now(),
+            observed_disk_mtime: None,
             last_saved_revision: 0,
             modified_since_accessed: false,
             language_servers: HashMap::new(),
@@ -1255,6 +1261,22 @@ impl Document {
             },
             None => SystemTime::now(),
         };
+        self.observed_disk_mtime = None;
+    }
+
+    /// Record the file's current mtime on disk, used to detect external changes.
+    pub fn poll_disk_mtime(&mut self) {
+        self.observed_disk_mtime = self
+            .path()
+            .and_then(|path| path.metadata().ok())
+            .and_then(|metadata| metadata.modified().ok());
+    }
+
+    /// Whether the file on disk changed after the buffer was last loaded or saved,
+    /// as of the last [`Self::poll_disk_mtime`] call.
+    pub fn is_stale(&self) -> bool {
+        self.observed_disk_mtime
+            .is_some_and(|mtime| mtime != self.last_saved_time)
     }
 
     // Detect if the file is readonly and change the readonly field if necessary (unix only)
@@ -1843,6 +1865,7 @@ impl Document {
         );
         self.last_saved_revision = rev;
         self.last_saved_time = save_time;
+        self.observed_disk_mtime = None;
     }
 
     /// Get the document's latest saved revision.
