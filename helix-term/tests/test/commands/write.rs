@@ -939,6 +939,32 @@ async fn test_move_file_when_given_dir_and_filename() -> anyhow::Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn test_move_file_to_single_segment_relative_path() -> anyhow::Result<()> {
+    let cwd = helix_stdx::env::current_working_dir();
+    let source_file = tempfile::NamedTempFile::new_in(&cwd)?;
+    let target_file = tempfile::NamedTempFile::new_in(&cwd)?.into_temp_path();
+    std::fs::remove_file(&target_file)?;
+
+    let target_name = target_file.file_name().unwrap().to_string_lossy();
+    let mut app = helpers::AppBuilder::new()
+        .with_file(source_file.path(), None)
+        .build()?;
+
+    test_key_sequence(
+        &mut app,
+        Some(&format!(":move {target_name}<ret>")),
+        None,
+        false,
+    )
+    .await?;
+
+    assert!(target_file.is_file());
+    assert!(!source_file.path().exists());
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn test_move_file_when_given_dir_only() -> anyhow::Result<()> {
     let source_dir = tempfile::tempdir()?;
     let target_dir = tempfile::tempdir()?;

@@ -2788,7 +2788,10 @@ fn move_buffer_impl(
         .unwrap_or(new_path);
 
     if old_path.exists() {
-        if let Some(parent) = new_path.parent() {
+        if let Some(parent) = new_path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
             if !parent.exists() {
                 if options.force {
                     std::fs::DirBuilder::new().recursive(true).create(parent)?;
