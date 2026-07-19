@@ -21,8 +21,9 @@ use crate::{
 /// Enum representing indentation style.
 ///
 /// Only values 1-8 are valid for the `Spaces` variant.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum IndentStyle {
+    #[default]
     Tabs,
     Spaces(u8),
 }
@@ -60,6 +61,19 @@ impl IndentStyle {
                 let closest_n = n.clamp(1, MAX_INDENT) as usize;
                 &INDENTS[0..closest_n]
             }
+        }
+    }
+
+    /// Parses the values accepted by `:indent-style`: a non-empty prefix of
+    /// `"tabs"` or `"0"` for tabs, `"1"`..=`"16"` for that many spaces.
+    pub fn parse(s: &str) -> Option<Self> {
+        if !s.is_empty() && "tabs".starts_with(&s.to_lowercase()) {
+            return Some(IndentStyle::Tabs);
+        }
+        match s.parse::<u8>() {
+            Ok(0) => Some(IndentStyle::Tabs),
+            Ok(n) if (1..=MAX_INDENT).contains(&n) => Some(IndentStyle::Spaces(n)),
+            _ => None,
         }
     }
 
@@ -1391,6 +1405,24 @@ pub fn get_scopes<'a>(syntax: Option<&'a Syntax>, text: RopeSlice, pos: usize) -
 mod test {
     use super::*;
     use crate::Rope;
+
+    #[test]
+    fn test_parse_indent_style() {
+        assert_eq!(IndentStyle::parse("tabs"), Some(IndentStyle::Tabs));
+        assert_eq!(IndentStyle::parse("Tab"), Some(IndentStyle::Tabs));
+        assert_eq!(IndentStyle::parse("t"), Some(IndentStyle::Tabs));
+        assert_eq!(IndentStyle::parse("0"), Some(IndentStyle::Tabs));
+        assert_eq!(IndentStyle::parse("1"), Some(IndentStyle::Spaces(1)));
+        assert_eq!(IndentStyle::parse("4"), Some(IndentStyle::Spaces(4)));
+        assert_eq!(
+            IndentStyle::parse(&MAX_INDENT.to_string()),
+            Some(IndentStyle::Spaces(MAX_INDENT))
+        );
+        assert_eq!(IndentStyle::parse(""), None);
+        assert_eq!(IndentStyle::parse("spaces"), None);
+        assert_eq!(IndentStyle::parse(&(MAX_INDENT + 1).to_string()), None);
+        assert_eq!(IndentStyle::parse("-1"), None);
+    }
 
     #[test]
     fn test_indent_level() {

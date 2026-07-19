@@ -8,7 +8,6 @@ use super::*;
 
 use helix_core::command_line::{Args, Flag, Signature, Token, TokenKind};
 use helix_core::fuzzy::fuzzy_match;
-use helix_core::indent::MAX_INDENT;
 use helix_core::line_ending;
 use helix_stdx::path::home_dir;
 use helix_view::document::{read_to_string, DEFAULT_LANGUAGE_NAME};
@@ -609,18 +608,10 @@ fn set_indent_style(
     }
 
     // Attempt to parse argument as an indent style.
-    let style = match args.first() {
-        Some(arg) if "tabs".starts_with(&arg.to_lowercase()) => Some(Tabs),
-        Some("0") => Some(Tabs),
-        Some(arg) => arg
-            .parse::<u8>()
-            .ok()
-            .filter(|n| (1..=MAX_INDENT).contains(n))
-            .map(Spaces),
-        _ => None,
-    };
-
-    let style = style.context("invalid indent style")?;
+    let style = args
+        .first()
+        .and_then(IndentStyle::parse)
+        .context("invalid indent style")?;
     let doc = doc_mut!(cx.editor);
     doc.indent_style = style;
 

@@ -54,7 +54,6 @@ use crate::{
 /// 8kB of buffer space for encoding and decoding `Rope`s.
 const BUF_SIZE: usize = 8192;
 
-const DEFAULT_INDENT: IndentStyle = IndentStyle::Tabs;
 const DEFAULT_TAB_WIDTH: usize = 4;
 
 pub const DEFAULT_LANGUAGE_NAME: &str = "text";
@@ -723,6 +722,7 @@ impl Document {
     ) -> Self {
         let (encoding, has_bom) = encoding_with_bom_info.unwrap_or((encoding::UTF_8, false));
         let line_ending = config.load().default_line_ending.into();
+        let indent_style = config.load().indent_style;
         let changes = ChangeSet::new(text.slice(..));
         let old_state = None;
 
@@ -738,7 +738,7 @@ impl Document {
             inlay_hints: HashMap::default(),
             inlay_hints_oudated: false,
             view_data: Default::default(),
-            indent_style: DEFAULT_INDENT,
+            indent_style,
             editor_config: EditorConfig::default(),
             line_ending,
             restore_cursor: false,
@@ -1224,7 +1224,8 @@ impl Document {
             auto_detect_indent_style(&self.text).unwrap_or_else(|| {
                 self.language_config()
                     .and_then(|config| config.indent.as_ref())
-                    .map_or(DEFAULT_INDENT, |config| IndentStyle::from_str(&config.unit))
+                    .map(|config| IndentStyle::from_str(&config.unit))
+                    .unwrap_or_else(|| self.config.load().indent_style)
             })
         };
         if let Some(line_ending) = self

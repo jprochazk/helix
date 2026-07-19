@@ -46,6 +46,7 @@ pub use helix_core::diagnostic::Severity;
 use helix_core::{
     auto_pairs::AutoPairs,
     diagnostic::DiagnosticProvider,
+    indent::IndentStyle,
     syntax::{
         self,
         config::{AutoPairConfig, IndentationHeuristic, LanguageServerFeature, SoftWrap},
@@ -274,6 +275,38 @@ where
     serializer.serialize_str(&alphabet)
 }
 
+fn serialize_indent_style<S>(indent_style: &IndentStyle, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match indent_style {
+        IndentStyle::Tabs => serializer.serialize_str("tabs"),
+        IndentStyle::Spaces(n) => serializer.serialize_u8(*n),
+    }
+}
+
+fn deserialize_indent_style<'de, D>(deserializer: D) -> Result<IndentStyle, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrU8 {
+        String(String),
+        U8(u8),
+    }
+
+    let value = match StringOrU8::deserialize(deserializer)? {
+        StringOrU8::String(s) => s,
+        StringOrU8::U8(n) => n.to_string(),
+    };
+
+    IndentStyle::parse(&value)
+        .ok_or_else(|| <D::Error as Error>::custom(format!("invalid indent style: {value:?}")))
+}
+
 fn deserialize_alphabet<'de, D>(deserializer: D) -> Result<Vec<char>, D::Error>
 where
     D: Deserializer<'de>,
@@ -413,6 +446,14 @@ pub struct Config {
     /// Which indent heuristic to use when a new line is inserted
     #[serde(default)]
     pub indent_heuristic: IndentationHeuristic,
+    /// Fallback indent style when it can't be auto-detected and the language
+    /// defines none. Same values as `:indent-style`. Defaults to tabs.
+    #[serde(
+        default,
+        serialize_with = "serialize_indent_style",
+        deserialize_with = "deserialize_indent_style"
+    )]
+    pub indent_style: IndentStyle,
     /// labels characters used in jumpmode
     #[serde(
         serialize_with = "serialize_alphabet",
@@ -1148,6 +1189,7 @@ impl Default for Config {
             smart_tab: Some(SmartTabConfig::default()),
             popup_border: PopupBorderConfig::None,
             indent_heuristic: IndentationHeuristic::default(),
+            indent_style: IndentStyle::default(),
             jump_label_alphabet: ('a'..='z').collect(),
             inline_diagnostics: InlineDiagnosticsConfig::default(),
             end_of_line_diagnostics: DiagnosticFilter::Enable(Severity::Hint),
