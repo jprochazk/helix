@@ -56,11 +56,21 @@ pub fn poll(editor: &mut Editor) {
         .collect();
 
     for (doc_id, view_ids) in stale_docs {
+        let trust_full = {
+            let doc = helix_view::doc!(editor, &doc_id);
+            editor
+                .workspace_trust
+                .query(
+                    doc.workspace_root(),
+                    helix_loader::workspace_trust::TrustQuery::Git,
+                )
+                .is_trusted()
+        };
         let doc = doc_mut!(editor, &doc_id);
         let view = view_mut!(editor, view_ids[0]);
         view.sync_changes(doc);
 
-        if let Err(err) = doc.reload(view, &editor.diff_providers) {
+        if let Err(err) = doc.reload(view, &editor.diff_providers, trust_full) {
             // Don't surface errors in the status line: this runs every few
             // seconds and would clobber it.
             log::error!("auto-reload of {:?} failed: {err}", doc.display_name());
